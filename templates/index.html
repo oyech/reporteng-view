@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#163f36">
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+  <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='favicon_16x16.png') }}">
+  <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='favicon_32x32.png') }}">
+  <link rel="icon" type="image/png" sizes="48x48" href="{{ url_for('static', filename='favicon_48x48.png') }}">
+  <link rel="icon" type="image/png" sizes="64x64" href="{{ url_for('static', filename='favicon_64x64.png') }}">
+  <title>ReportEng — {{ report_title|default('Laporan Pekerjaan') }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260915-view') }}">
+  <script defer src="{{ url_for('static', filename='app.js', v='20260915-view3') }}"></script>
+</head>
+<body data-reports-url="{{ reports_url|default('/api/reports') }}" data-export-url="{{ export_url|default('/export') }}" data-export-prefix="{{ export_prefix|default('laporan') }}" data-report-timezone="{{ report_timezone }}">
+  {% include '_sidebar.html' %}
+  <div class="app-shell">
+     <header class="topbar"><div>Workspace <span>/</span> <strong>{{ report_title|default('Laporan Pekerjaan') }}</strong></div><div class="topbar-right"><span class="today" id="today"></span><span class="account-email" title="{{ g.identity.email }}">{{ g.identity.email }}</span><form class="logout-form" action="/logout" method="post"><input type="hidden" name="csrf" value="{{ session.get('csrf', '') }}"><button type="submit">Keluar</button></form></div></header>
+    <main>
+      <div class="page-heading"><div><div class="eyebrow">ENGINEERING WORKSPACE</div><h1>{{ report_heading|default('Laporan Pekerjaan Engineering') }}<span>.</span></h1><p>{{ report_description|default('Aktivitas tim, progres pekerjaan, dan dokumentasi Pekerjaan Engineering') }}</p></div><div class="heading-actions"><a class="button presentation-toggle" href="/kode-item">Cari kode item</a><button type="button" class="button presentation-toggle" id="presentation-toggle" aria-pressed="false">Mode presentasi</button><button type="button" class="button export" id="export" disabled><svg viewBox="0 0 24 24"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg><span>Export Excel</span></button></div></div>
+      <div class="presentation-context" id="presentation-context" hidden><span id="presentation-summary"></span><span>← → Halaman <span aria-hidden="true">·</span> Esc Keluar</span></div>
+      <div class="stats">
+        <section class="stat"><div><span>Total pekerjaan</span><span class="stat-icon neutral">▤</span></div><strong id="total">—</strong><p>Dalam hasil filter</p></section>
+        <section class="stat"><div><span>Selesai</span><span class="stat-icon green">✓</span></div><strong id="done">—</strong><p><i class="tiny-dot green-bg"></i>Pekerjaan terselesaikan</p></section>
+        <section class="stat"><div><span>Dalam proses</span><span class="stat-icon amber">◷</span></div><strong id="progress">—</strong><p><i class="tiny-dot amber-bg"></i>Sedang dikerjakan</p></section>
+        <section class="stat"><div><span>Menunggu / lainnya</span><span class="stat-icon gray">···</span></div><strong id="pending">—</strong><p><i class="tiny-dot gray-bg"></i>Status pekerjaan lainnya</p></section>
+      </div>
+      <section class="filter-card" aria-label="Filter laporan"><div class="section-title"><h2><svg viewBox="0 0 24 24"><path d="M4 7h16M7 12h10M10 17h4"/></svg>Filter laporan</h2><button type="button" class="text-button" id="reset">↻ Reset filter</button></div>
+        <form id="filters"><div class="filter-grid">
+          <div class="period-field"><label for="start">Periode tanggal</label><div class="date-range"><input type="date" name="start" id="start" aria-label="Tanggal mulai"><span>→</span><input type="date" name="end" id="end" aria-label="Tanggal akhir"></div></div>
+          <div><label for="area_kerja">Area kerja</label><select id="area_kerja" name="area_kerja"><option value="">Semua area</option></select></div>
+          <div><label for="unit_area">Unit / Area</label><select id="unit_area" name="unit_area"><option value="">Semua unit</option></select></div>
+          <div><label for="status">Status</label><select id="status" name="status"><option value="">Semua status</option></select></div>
+          <div><label for="pic">PIC</label><select id="pic" name="pic"><option value="">Semua PIC</option></select></div>
+        </div><div class="filter-bottom"><span id="period-caption">Pilih periode untuk menampilkan laporan.</span><button class="button apply" type="submit">Terapkan filter <span>→</span></button></div></form>
+      </section>
+      <section class="table-card"><div class="table-heading"><div><h2>Daftar pekerjaan <span class="count-pill" id="count">0</span></h2><p>Catatan pekerjaan dan dokumentasi lapangan.</p></div><div class="table-actions">          <div class="search-box"><svg viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path d="m15 15 5 5"/></svg><input type="search" id="search" placeholder="Cari pekerjaan, area, PIC…" aria-label="Cari pekerjaan, area, atau PIC" autocomplete="off"><div id="search-suggestions" class="search-suggestions" hidden></div></div><button type="button" class="refresh" id="refresh" aria-label="Muat ulang laporan" title="Muat ulang">↻</button><button type="button" class="auto-refresh-toggle" id="auto-refresh-toggle" aria-label="Toggle auto-refresh" title="Toggle auto-refresh">⟳</button><span id="auto-refresh-indicator" class="auto-refresh-indicator" hidden>Auto-refresh aktif</span></div></div>
+        <div id="notice" role="status" aria-live="polite" hidden></div>
+        <div class="table-scroll"><table><thead><tr><th>TANGGAL & WAKTU (UTC+7)</th><th>AREA KERJA</th><th>UNIT / AREA</th><th class="job-col">PEKERJAAN</th><th>STATUS</th><th>PIC</th><th>FOTO</th><th>VIEW</th></tr></thead><tbody id="rows"></tbody></table></div>
+        <div id="empty" class="empty" hidden><div class="empty-icon">▤</div><h3 id="empty-title">Belum ada laporan</h3><p id="empty-description">Coba ubah periode tanggal atau filter untuk melihat pekerjaan lainnya.</p></div>
+        <div class="table-footer"><span id="pagination-info">Memuat laporan…</span><div class="pagination"><label for="page-size">Baris per halaman</label><select id="page-size"><option>10</option><option>25</option><option>50</option></select><button type="button" id="prev" aria-label="Halaman sebelumnya">‹</button><span id="page-number">1</span><button type="button" id="next" aria-label="Halaman berikutnya">›</button></div></div>
+      </section>
+      <footer class="main-footer"><span>ReportEng <span class="footer-divider">/</span> Ruang kerja engineering yang terorganisir.</span><span id="updated">Data dari Supabase</span></footer>
+    </main>
+  </div>
+  <dialog id="photo-dialog"><div class="modal-top"><strong>Dokumentasi pekerjaan</strong><button type="button" id="close-photo" aria-label="Tutup foto">×</button></div><div id="photos"></div></dialog>
+  <dialog id="report-dialog" class="report-dialog"><div class="modal-top"><strong>Detail laporan</strong><button type="button" id="close-report" aria-label="Tutup detail">×</button></div><div id="report-detail"></div></dialog>
+  <div id="toast" role="status" hidden></div>
+</body>
+</html>

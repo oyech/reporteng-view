@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#163f36">
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+  <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='favicon_16x16.png') }}">
+  <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='favicon_32x32.png') }}">
+  <link rel="icon" type="image/png" sizes="48x48" href="{{ url_for('static', filename='favicon_48x48.png') }}">
+  <link rel="icon" type="image/png" sizes="64x64" href="{{ url_for('static', filename='favicon_64x64.png') }}">
+  <title>ReportEng — Pricelist Pekerjaan</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='items.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='pricelist.css') }}">
+</head>
+<body class="catalog-page pricelist-page">
+  {% include '_sidebar.html' %}
+  <div class="app-shell">
+    <header class="topbar"><a href="/">← Laporan pekerjaan</a><div class="topbar-right"><span class="account-email">{{ g.identity.email }}</span><form class="logout-form" action="/logout" method="post"><input type="hidden" name="csrf" value="{{ session.get('csrf', '') }}"><button type="submit">Keluar</button></form></div></header>
+    <main>
+      <div class="page-heading"><div><div class="eyebrow">KATALOG ENGINEERING</div><h1>Pricelist pekerjaan<span>.</span></h1><p>Referensi harga jasa dan material dari Pricelist FLT.xlsx.</p></div><div class="catalog-total"><strong>{{ catalog_count }}</strong><span>{{ 'tarif jasa' if view == 'jasa' else 'rincian' }}</span></div></div>
+      <div class="price-period"><strong>Periode sumber: {{ period }}</strong><span>Harga ditampilkan sesuai Excel, termasuk angka pembulatan dan keterangan persetujuan.</span></div>
+      <nav class="price-tabs" aria-label="Jenis pricelist">
+        <a href="{{ url_for('pricelist') }}" {{ 'aria-current=page' if view == 'detail' else '' }}>Pekerjaan & material</a>
+        <a href="{{ url_for('pricelist', view='jasa') }}" {{ 'aria-current=page' if view == 'jasa' else '' }}>Tarif & klasifikasi jasa</a>
+      </nav>
+      <section class="filter-card catalog-search" aria-label="Pencarian pricelist">
+        <form method="get" action="{{ url_for('pricelist') }}" role="search">
+          <input type="hidden" name="view" value="{{ view }}">
+          <div class="price-filters">
+            <div><label for="price-query">Pekerjaan, material, atau kode GP</label><input type="search" id="price-query" name="q" value="{{ query }}" placeholder="Contoh: cleaning AC, kompressor, HVAC-A" maxlength="200"></div>
+            <div><label for="price-category">Kategori</label><select id="price-category" name="category"><option value="">Semua kategori</option>{% for option in categories %}<option value="{{ option }}" {{ 'selected' if option == category else '' }}>{{ option }}</option>{% endfor %}</select></div>
+            <button type="submit" class="button export">Cari</button>
+            {% if query or category %}<a class="button presentation-toggle" href="{{ url_for('pricelist', view=view) }}">Reset</a>{% endif %}
+          </div>
+        </form>
+      </section>
+      <section class="table-card catalog-results" aria-label="Daftar harga">
+        <div class="table-heading"><div><h2>{{ 'Tarif jasa' if view == 'jasa' else 'Pekerjaan & material' }} <span class="count-pill">{{ total }}</span></h2><p>{{ 'Lampiran 1 & 2 · Harga dan klasifikasi B, A, A+' if view == 'jasa' else 'Lampiran 3 · Harga dasar 2019 · Nominal sesuai volume yang tercantum' }}</p></div></div>
+        {% if rows %}
+        <div class="catalog-table-scroll">
+          {% if view == 'detail' %}
+          <table class="price-table"><thead><tr><th scope="col">PEKERJAAN / MATERIAL</th><th scope="col">VOLUME</th><th scope="col">HARGA JASA</th><th scope="col">HARGA MATERIAL</th><th scope="col">TOTAL HARGA</th><th scope="col">PEMBULATAN</th></tr></thead><tbody>
+            {% for row in rows %}<tr>
+              <td><small>{{ row.category }}</small>{% if row.group and row.group != row.name %}<small>{{ row.group }}</small>{% endif %}{% if row.parent %}<small>{{ row.parent }}</small>{% endif %}<strong>{{ row.name }}</strong>{% if row.code %}<code>{{ row.code }}</code>{% endif %}{% if row.note %}<p class="price-note">{{ row.note }}</p>{% endif %}<small>Lampiran 3 · Baris {{ row.row }}{% if row.service_type %} · {{ row.service_type }}{% endif %}</small>{% if row.free %}<span class="price-free">Free service kepada penghuni</span>{% endif %}</td>
+              <td>{{ row.volume if row.volume is not none else '—' }} {{ row.unit or '' }}</td>
+              <td>{{ money(row.service) }}</td><td>{{ money(row.material) }}</td><td>{{ money(row.total) }}</td><td><strong>{{ money(row.rounded) }}</strong></td>
+            </tr>{% endfor %}
+          </tbody></table>
+          {% else %}
+          <table class="price-table rate-table"><thead><tr><th scope="col">KODE / JENIS PEKERJAAN</th><th scope="col">B</th><th scope="col">A</th><th scope="col">A+</th><th scope="col">KLASIFIKASI & CONTOH</th></tr></thead><tbody>
+            {% for row in rows %}<tr><td><strong>{{ row.code }}</strong><small>{{ row.type }}</small></td>{% for price in row.prices %}<td>{{ money(price) }}</td>{% endfor %}<td><p class="price-note">Waktu: {{ row.criteria[0] }} · Kesulitan: {{ row.criteria[1] }} · Safety: {{ row.criteria[2] }}</p>{% if row.examples %}<details><summary>Contoh pekerjaan ({{ row.examples|length }})</summary><ul>{% for example in row.examples %}<li>{{ example }}</li>{% endfor %}</ul></details>{% else %}<small>Contoh tidak tercantum.</small>{% endif %}</td></tr>{% endfor %}
+          </tbody></table>
+          {% endif %}
+        </div>
+        {% else %}<div class="empty"><div class="empty-icon">⌕</div><h3>Pekerjaan tidak ditemukan</h3><p>Coba kata yang lebih singkat atau pilih kategori lain.</p><a class="button presentation-toggle" href="{{ url_for('pricelist', view=view) }}">Tampilkan semua</a></div>{% endif %}
+        <div class="table-footer"><span role="status">Menampilkan {{ start }}–{{ end }} dari {{ total }} rincian</span><nav class="catalog-pagination" aria-label="Halaman pricelist">{% if page > 1 %}<a href="{{ url_for('pricelist', view=view, q=query, category=category, page=page-1) }}">← Sebelumnya</a>{% endif %}<span>Halaman {{ page }} / {{ pages }}</span>{% if page < pages %}<a href="{{ url_for('pricelist', view=view, q=query, category=category, page=page+1) }}">Berikutnya →</a>{% endif %}</nav></div>
+      </section>
+      {% if view == 'jasa' %}<section class="price-legend"><h2>Arti klasifikasi</h2><div>{% for label, levels in criteria_notes.items() %}<article><h3>{{ label }}</h3>{% for level, description in levels.items() %}<p><strong>{{ level }}</strong> — {{ description }}</p>{% endfor %}</article>{% endfor %}</div></section>{% endif %}
+      <p class="catalog-note">Sumber: Pricelist FLT.xlsx. Tanda — berarti nilai tidak tercantum di sumber. Setiap baris merupakan rincian tersendiri; jasa dan material suatu pekerjaan dapat berada pada baris berbeda.</p>
+    </main>
+  </div>
+</body>
+</html>

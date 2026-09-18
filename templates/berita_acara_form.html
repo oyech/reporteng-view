@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#163f36">
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+  <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='favicon_16x16.png') }}">
+  <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='favicon_32x32.png') }}">
+  <link rel="icon" type="image/png" sizes="48x48" href="{{ url_for('static', filename='favicon_48x48.png') }}">
+  <link rel="icon" type="image/png" sizes="64x64" href="{{ url_for('static', filename='favicon_64x64.png') }}">
+  <title>ReportEng — {% if edit_mode %}Edit Berita Acara{% else %}Buat Berita Acara{% endif %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260916-approval2') }}">
+</head>
+<body class="catalog-page">
+  {% include '_sidebar.html' %}
+  <div class="app-shell">
+    <header class="topbar"><a href="/berita_acara">← Daftar Berita Acara</a><div class="topbar-right"><span class="account-email">{{ g.identity.email }}</span><form class="logout-form" action="/logout" method="post"><input type="hidden" name="csrf" value="{{ session.get('csrf', '') }}"><button type="submit">Keluar</button></form></div></header>
+    <main>
+      <div class="page-heading"><div><div class="eyebrow">DOKUMENTASI ENGINEERING</div><h1>{% if edit_mode %}Edit Berita Acara<span>.</span>{% else %}Buat Berita Acara Baru<span>.</span>{% endif %}</h1><p>{% if edit_mode %}Edit berita acara kejadian engineering.{% else %}Dokumentasikan kejadian dan insiden engineering.{% endif %}</p></div></div>
+      
+      <section class="filter-card" aria-label="Form Berita Acara">
+        <form id="beritaForm" {% if edit_mode %}action="/berita_acara/{{ berita.id }}/update"{% else %}action="/berita_acara/create"{% endif %} method="POST" enctype="multipart/form-data">
+          <div class="form-section">
+            <h3>Informasi Dasar</h3>
+            <div class="filter-grid">
+              <div><label for="nomor">Nomor Berita Acara *</label><input type="text" id="nomor" name="nomor" required placeholder="Contoh: 067" {% if edit_mode %}value="{{ berita.nomor }}"{% endif %}></div>
+              <div><label for="tanggal">Tanggal *</label><input type="date" id="tanggal" name="tanggal" required {% if edit_mode %}value="{{ berita.tanggal.strftime('%Y-%m-%d') }}"{% endif %}></div>
+              <div><label for="waktu">Waktu *</label><input type="time" id="waktu" name="waktu" required {% if edit_mode %}value="{{ berita.waktu }}"{% endif %}></div>
+              <div><label for="lokasi">Lokasi *</label><input type="text" id="lokasi" name="lokasi" required placeholder="Contoh: Lobby Utama Club House" {% if edit_mode %}value="{{ berita.lokasi }}"{% endif %}></div>
+            </div>
+          </div>
+          
+          <div class="form-section">
+            <h3>Deskripsi Kejadian</h3>
+            <div><label for="deskripsi">Deskripsi Pekerjaan *</label><input type="text" id="deskripsi" name="deskripsi" required placeholder="Masukkan deskripsi pekerjaan" value="{% if edit_mode %}{{ berita.deskripsi }}{% endif %}"></div>
+          </div>
+          
+          <div class="form-section">
+            <h3>Analisa / Kronologi</h3>
+            <div><label for="analisa">Analisa dan Kronologi Kejadian *</label><textarea id="analisa" name="analisa" rows="5" required placeholder="Jelaskan analisa penyebab dan kronologi kejadian...">{% if edit_mode %}{{ berita.analisa }}{% endif %}</textarea></div>
+          </div>
+          
+          <div class="form-section">
+            <h3>Pencegahan / Solusi</h3>
+            <div><label for="solusi">Langkah-langkah Pencegahan dan Solusi *</label><textarea id="solusi" name="solusi" rows="5" required placeholder="Jelaskan langkah-langkah perbaikan dan pencegahan...">{% if edit_mode %}{{ berita.solusi }}{% endif %}</textarea></div>
+          </div>
+          
+          <div class="form-section">
+            <h3>Lampiran Foto</h3>
+            <div><label for="gambar">Upload Foto Lampiran (Bisa lebih dari 1)</label><input type="file" id="gambar" name="gambar" accept="image/*" multiple></div>
+          </div>
+          
+          <div class="form-section">
+            <h3>Approval / Tanda Tangan</h3>
+            <div class="filter-grid approval-input-grid">
+              <div><label for="staff_engineering">Staff Engineering *</label><input type="text" id="staff_engineering" name="staff_engineering" required placeholder="Nama Staff Engineering" {% if edit_mode %}value="{{ berita.staff_engineering }}"{% endif %}></div>
+              <div><label for="supervisor">Supervisor Engineering *</label><input type="text" id="supervisor" name="supervisor" required placeholder="Nama Supervisor" {% if edit_mode %}value="{{ berita.supervisor }}"{% endif %}></div>
+              <div><label for="asst_manager">Engineering Asst Manager *</label><input type="text" id="asst_manager" name="asst_manager" required placeholder="Nama Asst Manager" {% if edit_mode %}value="{{ berita.asst_manager }}"{% endif %}></div>
+              <div><label for="property_manager">Property Manager *</label><input type="text" id="property_manager" name="property_manager" required placeholder="Nama Property Manager" {% if edit_mode %}value="{{ berita.property_manager }}"{% endif %}></div>
+            </div>
+          </div>
+          
+          <div class="filter-bottom"><button class="button apply" type="submit">{% if edit_mode %}Simpan Perubahan{% else %}Simpan{% endif %}</button><a href="/berita_acara" class="button presentation-toggle">Batal</a></div>
+        </form>
+      </section>
+    </main>
+  </div>
+  <div id="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>

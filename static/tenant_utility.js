@@ -1,0 +1,34 @@
+const $u = (id) => document.getElementById(id);
+const notice = $u('utility-notice');
+const unitSelect = $u('utility-units');
+unitSelect.multiple = false;
+unitSelect.size = 1;
+unitSelect.insertBefore(new Option('Pilih unit', ''), unitSelect.firstChild);
+const monthSelect = $u('utility-months');
+const allMonths = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+monthSelect.setAttribute('aria-label', 'Pilih satu atau beberapa bulan');
+monthSelect.title = 'Gunakan Ctrl/Cmd untuk memilih lebih dari satu bulan';
+monthSelect.insertBefore(new Option('Pilih bulan (bisa lebih dari satu)', ''), monthSelect.firstChild);
+monthSelect.hidden = true;
+const monthPicker = document.createElement('div'); monthPicker.className = 'month-picker';
+const monthButton = document.createElement('button'); monthButton.type = 'button'; monthButton.className = 'month-picker-button'; monthButton.textContent = 'Pilih bulan';
+const monthPanel = document.createElement('div'); monthPanel.className = 'month-picker-panel'; monthPanel.hidden = true;
+allMonths.forEach((month) => { const label = document.createElement('label'); const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.value = month; checkbox.addEventListener('change', () => { const chosen = [...monthPanel.querySelectorAll('input:checked')].map((item) => item.value); monthButton.textContent = chosen.length ? chosen.join(', ') : 'Pilih bulan'; }); label.append(checkbox, document.createTextNode(month)); monthPanel.append(label); });
+monthButton.addEventListener('click', () => { monthPanel.hidden = !monthPanel.hidden; });
+monthPicker.append(monthButton, monthPanel); monthSelect.parentElement.append(monthPicker);
+document.addEventListener('click', (event) => { if (!monthPicker.contains(event.target)) monthPanel.hidden = true; });
+setInterval(() => { const chosen = selected(monthSelect); monthSelect.replaceChildren(new Option('Pilih bulan (bisa lebih dari satu)', ''), ...allMonths.map((month) => new Option(month, month))); chosen.forEach((value) => { const option = [...monthSelect.options].find((item) => item.value === value); if (option) option.selected = true; }); }, 250);
+['Bulan','Meter Awal Listrik','Meter Akhir Listrik','Usage Listrik (kWh)','Tagihan Listrik','Meter Awal Air','Meter Akhir Air','Usage Air (m³)','Tagihan Air','Tagihan Listrik & Air','PPN 11%','Total Tagihan'].forEach((label, index) => { const cell = document.querySelectorAll('.utility-table thead th')[index]; if (cell) cell.textContent = label; });
+const resultCard = $u('utility-results');
+const meta = document.createElement('div'); meta.className = 'utility-meta';
+const caption = document.createElement('div'); caption.className = 'utility-caption'; caption.textContent = 'Data Pemakaian Listrik-Air :';
+resultCard.insertBefore(meta, resultCard.firstChild); resultCard.insertBefore(caption, resultCard.children[1]);
+function message(text, error = false) { notice.textContent = text; notice.hidden = false; notice.className = error ? 'utility-error' : 'utility-success'; }
+function selected(select) { if (select === monthSelect) return [...monthPanel.querySelectorAll('input:checked')].map((item) => item.value); return [...select.selectedOptions].map((option) => option.value); }
+function valueOf(values, names) { const key = Object.keys(values).find((candidate) => names.some((name) => candidate.toLowerCase().includes(name))); return key ? values[key] : ''; }
+function number(value) { const parsed = Number(value); return Number.isFinite(parsed) ? parsed : 0; }
+function format(value) { return typeof value === 'number' ? value.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : (value || '—'); }
+function normalized(values) { const electricityKey = Object.keys(values).find((key) => key.trim().toLowerCase() === 'tagihan') || Object.keys(values).find((key) => key.toLowerCase().includes('tagihan listrik') && !key.toLowerCase().includes('total')); const listrik = number(electricityKey ? values[electricityKey] : 0); const air = number(valueOf(values, ['total tagihan air', 'tagihan air'])); const listrikAir = listrik + air; const ppn = listrikAir * 0.11; return [valueOf(values, ['meter awal (kwh)', 'meter awal listrik']), valueOf(values, ['meter akhir (kwh)', 'meter akhir listrik']), valueOf(values, ['usage (kwh)', 'usage listrik']), listrik, valueOf(values, ['meter awal (m3)', 'meter awal air']), valueOf(values, ['meter akhir (m3)', 'meter akhir air']), valueOf(values, ['usage (m3)', 'usage air']), air, listrikAir, ppn, listrikAir + ppn]; }
+async function loadUtility() { const params = new URLSearchParams(); selected($u('utility-units')).forEach((value) => params.append('unit', value)); selected($u('utility-months')).forEach((value) => params.append('month', value)); const response = await fetch('/api/tenant-utilities?' + params); const result = await response.json(); if (!response.ok) throw new Error(result.error || 'Gagal memuat data.'); [$u('utility-units'), $u('utility-months')].forEach((select, index) => { const values = index ? result.months : result.units; const current = selected(select); select.replaceChildren(...values.map((value) => new Option(value, value))); current.forEach((value) => { if (values.includes(value)) select.querySelector(`option[value="${CSS.escape(value)}"]`).selected = true; }); }); const first = result.data[0]; if (first) { const values = first.values; meta.innerHTML = `<span>Unit : <strong>${first.unit}</strong></span><span>Daya : <strong>${values['KVA'] ?? '—'}</strong></span><span>KVA</span><span>Min. Charge</span><span><strong>${values['KWH MIN'] ?? '—'}</strong> kwh</span>;`; } const rows = $u('utility-rows'); rows.replaceChildren(); result.data.forEach((item) => { const tr = document.createElement('tr'); [item.month, ...normalized(item.values)].forEach((value, index) => { const td = document.createElement('td'); const currency = [4, 9, 10, 11].includes(index); td.textContent = currency && typeof value === 'number' ? `Rp ${format(value)}` : format(value); tr.append(td); }); rows.append(tr); }); $u('utility-count').textContent = result.data.length; $u('utility-results').hidden = !result.data.length; }
+$u('utility-upload-form').addEventListener('submit', async (event) => { event.preventDefault(); try { const response = await fetch('/api/tenant-utilities', { method: 'POST', body: new FormData(event.target) }); const result = await response.json(); if (!response.ok) throw new Error(result.error); message(`${result.imported} baris pemakaian berhasil diimpor.`); await loadUtility(); } catch (error) { message(error.message, true); } });
+$u('utility-load').addEventListener('click', () => loadUtility().catch((error) => message(error.message, true))); loadUtility().catch(() => {});

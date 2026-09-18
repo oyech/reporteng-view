@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+  <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='favicon_16x16.png') }}">
+  <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='favicon_32x32.png') }}">
+  <link rel="icon" type="image/png" sizes="48x48" href="{{ url_for('static', filename='favicon_48x48.png') }}">
+  <link rel="icon" type="image/png" sizes="64x64" href="{{ url_for('static', filename='favicon_64x64.png') }}">
+  <title>Masuk — ReportEng</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="login-page"><main class="login-card">
+  <a class="brand" href="/login"><span class="brand-mark">r<span>e</span></span><span>report<span class="brand-light">eng.</span></span></a>
+  <div class="eyebrow">ENGINEERING WORKSPACE</div><h1>Laporan seluruh tim<span>.</span></h1>
+  <p>Masuk dengan akun tim untuk melihat pekerjaan, dokumentasi, dan mengunduh laporan.</p>
+  {% if error %}<div class="login-error" role="alert">{{ error }}</div>{% endif %}
+  <form method="post" action="{{ url_for('login') }}">
+    <input type="hidden" name="csrf" value="{{ session['csrf'] }}">
+    <label for="email">Email tim</label><input id="email" type="email" name="email" autocomplete="username" required placeholder="nama@perusahaan.com">
+    <label for="password">Password</label><input id="password" type="password" name="password" autocomplete="current-password" required placeholder="Masukkan password">
+    <button class="button export" type="submit">Masuk ke workspace <span>→</span></button>
+  </form><p class="login-help">Akses untuk akun tim yang terdaftar di profiles.</p>
+</main>
+</body>
+</html>

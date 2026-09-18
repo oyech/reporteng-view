@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#163f36">
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+  <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='favicon_16x16.png') }}">
+  <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='favicon_32x32.png') }}">
+  <link rel="icon" type="image/png" sizes="48x48" href="{{ url_for('static', filename='favicon_48x48.png') }}">
+  <link rel="icon" type="image/png" sizes="64x64" href="{{ url_for('static', filename='favicon_64x64.png') }}">
+  <title>ReportEng — Pencarian Kode Item</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='items.css') }}">
+  <script defer src="{{ url_for('static', filename='items.js', v='20260915-search') }}"></script>
+</head>
+<body class="catalog-page">
+  {% include '_sidebar.html' %}
+  <div class="app-shell">
+    <header class="topbar"><a href="/">← Laporan pekerjaan</a><div class="topbar-right"><span class="account-email">{{ g.identity.email }}</span><form class="logout-form" action="/logout" method="post"><input type="hidden" name="csrf" value="{{ session.get('csrf', '') }}"><button type="submit">Keluar</button></form></div></header>
+    <main>
+      <div class="page-heading"><div><div class="eyebrow">KATALOG ENGINEERING</div><h1>Cari kode item<span>.</span></h1><p>Temukan kode barang dan material untuk kebutuhan pekerjaan engineering.</p></div><div class="catalog-total"><strong>{{ '{:,}'.format(code_count).replace(',', '.') }}</strong><span>kode item</span></div></div>
+      <section class="table-card catalog-results" aria-label="Hasil pencarian">
+        <div class="table-heading"><div><h2>{{ 'Hasil pencarian' if query else 'Daftar barang & material' }} <span class="count-pill">{{ '{:,}'.format(total).replace(',', '.') }}</span></h2><p>{% if query %}Hasil untuk “{{ query }}”{% else %}Nama, kode, dan satuan sesuai daftar Kode Item.csv.{% endif %}</p></div><form method="get" action="{{ url_for('item_codes') }}" role="search" class="pdf-search item-table-search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input type="search" id="item-query" name="q" value="{{ query }}" placeholder="Cari kode atau nama..." maxlength="200" aria-label="Cari kode item atau nama barang"></form></div>
+        {% if items %}
+        <div class="catalog-table-scroll"><table class="catalog-table item-code-table"><thead><tr><th scope="col">KODE ITEM</th><th scope="col">NAMA BARANG / MATERIAL</th><th scope="col">SATUAN</th><th scope="col">TINDAKAN</th></tr></thead><tbody>
+          {% for item in items %}<tr><td><code>{{ item.code }}</code></td><td>{{ item.name }}{% if item.variants > 1 %}<small class="catalog-variant">Kode ini memiliki {{ item.variants }} variasi nama di sumber</small>{% endif %}</td><td>{{ item.satuan or '—' }}</td><td><button type="button" class="copy-code" data-code="{{ item.code }}" aria-label="Salin kode {{ item.code }}">Salin kode</button></td></tr>{% endfor %}
+        </tbody></table></div>
+        {% else %}<div class="empty"><div class="empty-icon">⌕</div><h3>Barang tidak ditemukan</h3><p>Coba kata yang lebih singkat, nama merek, ukuran, atau sebagian kode item.</p><a href="{{ url_for('item_codes') }}" class="button presentation-toggle">Tampilkan semua barang</a></div>{% endif %}
+        <div class="table-footer"><span>Menampilkan {{ start }}–{{ end }} dari {{ total }} barang</span><nav class="catalog-pagination" aria-label="Halaman hasil pencarian">{% if page > 1 %}<a href="{{ url_for('item_codes', q=query, page=page-1) }}">← Sebelumnya</a>{% endif %}<span>Halaman {{ page }} / {{ pages }}</span>{% if page < pages %}<a href="{{ url_for('item_codes', q=query, page=page+1) }}">Berikutnya →</a>{% endif %}</nav></div>
+      </section>
+      <p class="catalog-note">{{ source_count }} baris sumber diringkas menjadi {{ catalog_count }} pasangan kode–nama. Pengulangan identik ditampilkan satu kali; variasi nama tetap dipertahankan.</p>
+    </main>
+  </div>
+  <div id="toast" role="status" aria-live="polite" hidden></div>
+  <dialog id="copy-dialog"><div class="modal-top"><strong>Salin kode item</strong><button type="button" id="close-copy" aria-label="Tutup">×</button></div><p>Pilih dan salin kode di bawah ini.</p><input id="copy-value" readonly aria-label="Kode item untuk disalin"></dialog>
+</body>
+</html>

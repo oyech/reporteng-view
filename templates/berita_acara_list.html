@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#163f36">
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+  <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='favicon_16x16.png') }}">
+  <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='favicon_32x32.png') }}">
+  <link rel="icon" type="image/png" sizes="48x48" href="{{ url_for('static', filename='favicon_48x48.png') }}">
+  <link rel="icon" type="image/png" sizes="64x64" href="{{ url_for('static', filename='favicon_64x64.png') }}">
+  <title>ReportEng — Berita Acara</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="catalog-page" data-csrf="{{ session.get('csrf', '') }}">
+  {% include '_sidebar.html' %}
+  <div class="app-shell">
+    <header class="topbar"><a href="/">← Laporan pekerjaan</a><div class="topbar-right"><span class="account-email">{{ g.identity.email }}</span><form class="logout-form" action="/logout" method="post"><input type="hidden" name="csrf" value="{{ session.get('csrf', '') }}"><button type="submit">Keluar</button></form></div></header>
+    <main>
+      <div class="page-heading compact-page-heading"><div><div class="eyebrow">DOKUMENTASI ENGINEERING</div><h1>Berita Acara<span>.</span></h1><p>Dokumentasi kejadian dan laporan insiden engineering.</p></div><div class="catalog-total total-card"><strong>{{ berita_list|length }}</strong><span>berita acara</span></div></div>
+      
+      <section class="filter-card catalog-search" aria-label="Buat Berita Acara Baru">
+        <form action="{{ url_for('berita_acara_new') }}" method="get">
+          <button type="submit" class="button export">+ Buat Berita Acara Baru</button>
+        </form>
+      </section>
+
+      <section class="table-card catalog-results" aria-label="Daftar Berita Acara">
+        <div class="table-heading compact-heading"><div><h2>Daftar Berita Acara <span class="count-pill">{{ berita_list|length }}</span></h2></div><label class="catalog-search-input">⌕ <input type="search" placeholder="Cari berita acara..." data-table-search=".catalog-table tbody tr" aria-label="Cari berita acara"></label></div>
+        {% if berita_list %}
+        <div class="catalog-table-scroll"><table class="catalog-table"><thead><tr><th scope="col">NOMOR</th><th scope="col">TANGGAL</th><th scope="col">LOKASI</th><th scope="col">DESKRIPSI</th><th scope="col">TINDAKAN</th></tr></thead><tbody>
+          {% for berita in berita_list %}<tr>
+            <td><code>{{ berita.nomor }}</code></td>
+            <td>{{ berita.tanggal.strftime('%d/%m/%Y') }}</td>
+            <td>{{ berita.lokasi }}</td>
+            <td>{{ berita.deskripsi[:50] }}{% if berita.deskripsi|length > 50 %}...{% endif %}</td>
+            <td>
+              <a href="/berita_acara/{{ berita.id }}/view" class="button presentation-toggle">Detail</a>
+              <a href="/berita_acara/{{ berita.id }}/edit" class="button presentation-toggle">Edit</a>
+              <a href="/berita_acara/{{ berita.id }}/view_pdf" target="_blank" class="button export">Preview</a>
+              <a href="/berita_acara/{{ berita.id }}/pdf" class="button export">PDF</a>
+              <button type="button" class="button catalog-delete" data-delete-url="/berita_acara/{{ berita.id }}/delete" data-delete-label="Berita Acara {{ berita.nomor }}">Hapus</button>
+            </td>
+          </tr>{% endfor %}
+        </tbody></table></div>
+        {% else %}<div class="empty"><div class="empty-icon">▤</div><h3>Belum ada berita acara</h3><p>Mulai dengan membuat berita acara kejadian baru.</p><a href="{{ url_for('berita_acara_new') }}" class="button presentation-toggle">Buat Berita Acara Baru</a></div>{% endif %}
+      </section>
+    </main>
+  </div>
+  <div id="toast" role="status" aria-live="polite" hidden></div>
+  <script src="{{ url_for('static', filename='table_search.js') }}"></script>
+  <script src="{{ url_for('static', filename='catalog_delete.js', v='20260916-1') }}"></script>
+</body>
+</html>

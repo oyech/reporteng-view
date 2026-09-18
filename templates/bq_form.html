@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#163f36">
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+  <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='favicon_16x16.png') }}">
+  <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='favicon_32x32.png') }}">
+  <link rel="icon" type="image/png" sizes="48x48" href="{{ url_for('static', filename='favicon_48x48.png') }}">
+  <link rel="icon" type="image/png" sizes="64x64" href="{{ url_for('static', filename='favicon_64x64.png') }}">
+  <title>ReportEng — {% if edit_mode %}Edit BQ{% else %}Buat BQ{% endif %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260916-bq-items4') }}">
+</head>
+<body class="catalog-page">
+  {% include '_sidebar.html' %}
+  <div class="app-shell">
+    <header class="topbar"><a href="/bq">← Daftar BQ</a><div class="topbar-right"><span class="account-email">{{ g.identity.email }}</span><form class="logout-form" action="/logout" method="post"><input type="hidden" name="csrf" value="{{ session.get('csrf', '') }}"><button type="submit">Keluar</button></form></div></header>
+    <main>
+      <div class="page-heading"><div><div class="eyebrow">DOKUMENTASI ENGINEERING</div><h1>{% if edit_mode %}Edit Bill of Quantity<span>.</span>{% else %}Buat Bill of Quantity Baru<span>.</span>{% endif %}</h1><p>{% if edit_mode %}Edit estimasi biaya dan Bill of Quantity.{% else %}Buat estimasi biaya dan Bill of Quantity pekerjaan.{% endif %}</p></div></div>
+      
+      <section class="filter-card" aria-label="Form BQ">
+        <form class="form-container" id="bqForm" action="{% if edit_mode %}/bq/{{ bq.id }}/update{% else %}/bq/create{% endif %}" method="POST">
+          <div class="filter-grid bq-header-fields">
+            <div><label for="nomor">Nomor BQ *</label><input type="text" id="nomor" name="nomor" required placeholder="Contoh: 174/ICE-BQ/ENG/VII/2026" {% if edit_mode %}value="{{ bq.nomor }}"{% endif %}></div>
+            <div><label for="project">Project *</label><input type="text" id="project" name="project" required placeholder="Nama project" {% if edit_mode %}value="{{ bq.project }}"{% endif %}></div>
+            <div><label for="kontraktor">Kontraktor</label><input type="text" id="kontraktor" name="kontraktor" placeholder="Nama kontraktor" {% if edit_mode %}value="{{ bq.kontraktor }}"{% endif %}></div>
+          </div>
+          <div><label for="location">Location *</label><input type="text" id="location" name="location" required placeholder="Lokasi pekerjaan" value="{% if edit_mode %}{{ bq.location }}{% endif %}"></div>
+          
+          <div style="margin: 24px 0;">
+            <h3 style="font-size:15px;font-weight:600;color:#245b4b;margin:0 0 16px 0;">Item Pekerjaan</h3>
+            <div id="bqItemsBody">
+              {% if edit_mode %}
+                {% for item in bq.items %}
+                <div class="filter-grid item-row">
+                  <div><input type="text" name="item_no[]" value="{{ item.item_no }}" placeholder="No"></div>
+                  <div><input type="text" name="item_description[]" value="{{ item.item_description }}" placeholder="Deskripsi item"></div>
+                  <div><input type="number" name="item_qty[]" step="0.01" value="{{ item.qty }}" placeholder="Qty"></div>
+                  <div><input type="text" name="item_unit[]" value="{{ item.unit }}" placeholder="Unit"></div>
+                  <div><input type="number" name="item_material_price[]" step="0.01" value="{{ item.material_price }}" placeholder="Harga Material"></div>
+                  <div><input type="number" name="item_labor_price[]" step="0.01" value="{{ item.labor_price }}" placeholder="Harga Labor"></div>
+                  <div><button type="button" class="button" onclick="removeItem(this)">Hapus</button></div>
+                </div>
+                {% endfor %}
+              {% else %}
+                <div class="filter-grid item-row">
+                  <div><input type="text" name="item_no[]" value="1" placeholder="No"></div>
+                  <div><input type="text" name="item_description[]" placeholder="Deskripsi item"></div>
+                  <div><input type="number" name="item_qty[]" step="0.01" placeholder="Qty"></div>
+                  <div><input type="text" name="item_unit[]" placeholder="Unit"></div>
+                  <div><input type="number" name="item_material_price[]" step="0.01" placeholder="Harga Material"></div>
+                  <div><input type="number" name="item_labor_price[]" step="0.01" placeholder="Harga Labor"></div>
+                  <div><button type="button" class="button" onclick="removeItem(this)">Hapus</button></div>
+                </div>
+              {% endif %}
+            </div>
+            <button type="button" class="button export" onclick="addItem()">+ Tambah Item</button>
+          </div>
+          
+          <div class="filter-grid">
+            <div><label for="dibuat_oleh">Dibuat Oleh *</label><input type="text" id="dibuat_oleh" name="dibuat_oleh" required placeholder="Nama Engineering Ast. Manager" {% if edit_mode %}value="{{ bq.dibuat_oleh }}"{% endif %}></div>
+            <div><label for="menyetujui">Menyetujui *</label><input type="text" id="menyetujui" name="menyetujui" required placeholder="Nama Property Manager" {% if edit_mode %}value="{{ bq.menyetujui }}"{% endif %}></div>
+            <div><label for="mengetahui">Mengetahui *</label><input type="text" id="mengetahui" name="mengetahui" required placeholder="Nama GM Building Management" {% if edit_mode %}value="{{ bq.mengetahui }}"{% endif %}></div>
+          </div>
+          
+          <div class="filter-bottom"><button class="button apply" type="submit">{% if edit_mode %}Update & Generate PDF{% else %}Simpan & Generate PDF{% endif %}</button><a href="/bq" class="button presentation-toggle">Batal</a></div>
+        </form>
+      </section>
+    </main>
+  </div>
+  <div id="toast" role="status" aria-live="polite" hidden></div>
+<script>
+    const form = document.getElementById('bqForm');
+    const isEditMode = "{{ 'true' if edit_mode else 'false' }}" === "true";
+    
+    function addItem() {
+        const container = document.getElementById('bqItemsBody');
+        const rowCount = container.children.length;
+        const newRow = document.createElement('div');
+        newRow.className = 'filter-grid item-row';
+        newRow.innerHTML = `
+          <div><input type="text" name="item_no[]" value="${rowCount + 1}" placeholder="No"></div>
+          <div><input type="text" name="item_description[]" placeholder="Deskripsi item"></div>
+          <div><input type="number" name="item_qty[]" step="0.01" placeholder="Qty"></div>
+          <div><input type="text" name="item_unit[]" placeholder="Unit"></div>
+          <div><input type="number" name="item_material_price[]" step="0.01" placeholder="Harga Material"></div>
+          <div><input type="number" name="item_labor_price[]" step="0.01" placeholder="Harga Labor"></div>
+          <div><button type="button" class="button" onclick="removeItem(this)">Hapus</button></div>
+        `;
+        container.appendChild(newRow);
+    }
+    
+    function removeItem(button) {
+        const container = document.getElementById('bqItemsBody');
+        if (container.children.length <= 1) {
+            alert('Minimal harus ada 1 item pekerjaan.');
+            return;
+        }
+        button.closest('.item-row').remove();
+    }
+    
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        
+        fetch(form.action, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('BQ berhasil ' + (isEditMode ? 'diupdate' : 'disimpan') + '!');
+                window.location.href = '/bq/' + data.id + '/pdf';
+            } else {
+                alert('Gagal menyimpan: ' + data.error);
+            }
+        })
+        .catch(error => {
+            alert('Terjadi kesalahan: ' + error);
+        });
+    });
+</script>
+</body>
+</html>

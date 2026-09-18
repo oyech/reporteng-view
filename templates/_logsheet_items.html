@@ -1,0 +1,43 @@
+<div class="logsheet-controls">
+  <form method="get" action="{{ url_for('supabase_tables') }}" class="logsheet-filters">
+    <input type="hidden" name="table" value="logsheets">
+    <input type="hidden" name="page" value="{{ page }}">
+    <div class="logsheet-picker">
+      <label for="log-record">Tanggal & shift</label>
+      <select id="log-record" name="log">
+        {% for log in rows %}<option value="{{ log.get('log_key', '') }}" {% if log == selected_log %}selected{% endif %}>{{ log.get('log_date') or 'Tanpa tanggal' }} · Shift {{ log.get('shift') or '—' }}</option>{% endfor %}
+      </select>
+    </div>
+    <div><label for="log-search">Cari item</label><input type="search" id="log-search" name="q" value="{{ log_query }}" placeholder="Contoh: genset, tegangan, blower" maxlength="200"></div>
+    <div><label for="log-group">Kelompok</label><select id="log-group" name="group"><option value="">Semua kelompok</option>{% for group in log_groups %}<option value="{{ group }}" {% if group == log_group %}selected{% endif %}>{{ group }}</option>{% endfor %}</select></div>
+    <button type="submit" class="button export">Tampilkan</button>
+    <label class="logsheet-checkbox"><input type="checkbox" name="filled" value="1" {% if filled_only %}checked{% endif %}> Hanya item terisi</label>
+    {% if log_query or log_group or filled_only %}<a class="logsheet-reset" href="{{ url_for('supabase_tables', table='logsheets', page=page, log=selected_log.get('log_key', '')) }}">Reset filter</a>{% endif %}
+  </form>
+</div>
+<div class="logsheet-summary">
+  <div><span>CATATAN PEMERIKSAAN</span><strong>{{ selected_log.get('log_date') or 'Tanpa tanggal' }} <small>· Shift {{ selected_log.get('shift') or '—' }}</small></strong><p>Petugas: {{ personnel|join(', ') if personnel else 'Belum tercantum' }}</p></div>
+  <div class="logsheet-metrics"><div><strong>{{ item_count }}</strong><span>Total item</span></div><div><strong>{{ filled_count }}</strong><span>Terisi</span></div><div><strong>{{ item_count - filled_count }}</strong><span>Belum diisi</span></div></div>
+</div>
+{% if not payload_valid %}
+<div class="empty" role="status"><h3>Rincian belum tersedia</h3><p>Catatan ini belum memiliki rincian pemeriksaan dalam format yang dapat ditampilkan.</p></div>
+{% elif log_items %}
+<div class="logsheet-result-count" role="status">{{ log_items|length }} dari {{ item_count }} item · {{ 'Hasil pencarian: ' ~ log_query if log_query else 'Item dikelompokkan sesuai nama pemeriksaan.' }}</div>
+<div class="logsheet-scroll" tabindex="0" role="region" aria-label="Item pemeriksaan logsheet">
+  <table class="logsheet-table">
+    <thead><tr><th scope="col">No.</th><th scope="col">Kelompok</th><th scope="col">Item pemeriksaan</th><th scope="col">Nilai / kondisi</th></tr></thead>
+    <tbody>
+    {% for item in log_items %}
+      <tr>
+        <td class="logsheet-number">{{ loop.index }}</td>
+        <td><span class="logsheet-group">{{ item.group }}</span></td>
+        <th scope="row">{{ item.name }}</th>
+        <td>{% if not item.filled %}<span class="logsheet-unfilled">Belum diisi</span>{% elif item.value is mapping or (item.value is sequence and item.value is not string) %}<pre>{{ item.value|tojson(indent=2) }}</pre>{% elif item.value is sameas true %}Ya{% elif item.value is sameas false %}Tidak{% else %}<span class="logsheet-value">{{ item.value }}</span>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty" role="status"><h3>{{ 'Item tidak ditemukan' if item_count else 'Belum ada item pemeriksaan' }}</h3><p>Coba kata pencarian lain atau reset filter untuk melihat semua item.</p></div>
+{% endif %}

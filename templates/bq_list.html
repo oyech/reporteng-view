@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#163f36">
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+  <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='favicon_16x16.png') }}">
+  <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='favicon_32x32.png') }}">
+  <link rel="icon" type="image/png" sizes="48x48" href="{{ url_for('static', filename='favicon_48x48.png') }}">
+  <link rel="icon" type="image/png" sizes="64x64" href="{{ url_for('static', filename='favicon_64x64.png') }}">
+  <title>ReportEng — Bill of Quantity</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="catalog-page" data-csrf="{{ session.get('csrf', '') }}">
+  {% include '_sidebar.html' %}
+  <div class="app-shell">
+    <header class="topbar"><a href="/">← Laporan pekerjaan</a><div class="topbar-right"><span class="account-email">{{ g.identity.email }}</span><form class="logout-form" action="/logout" method="post"><input type="hidden" name="csrf" value="{{ session.get('csrf', '') }}"><button type="submit">Keluar</button></form></div></header>
+    <main>
+      <div class="page-heading compact-page-heading"><div><div class="eyebrow">DOKUMENTASI ENGINEERING</div><h1>Bill of Quantity<span>.</span></h1><p>Estimasi biaya dan Bill of Quantity pekerjaan engineering.</p></div><div class="catalog-total total-card"><strong>{{ bq_list|length }}</strong><span>BQ</span></div></div>
+      
+      <section class="filter-card catalog-search" aria-label="Buat BQ Baru">
+        <form action="{{ url_for('bq_new') }}" method="get">
+          <button type="submit" class="button export">+ Buat BQ Baru</button>
+        </form>
+      </section>
+
+      <section class="table-card catalog-results" aria-label="Daftar BQ">
+        <div class="table-heading compact-heading"><div><h2>Daftar Bill of Quantity <span class="count-pill">{{ bq_list|length }}</span></h2></div><label class="catalog-search-input">⌕ <input type="search" placeholder="Cari BQ..." data-table-search=".catalog-table tbody tr" aria-label="Cari BQ"></label></div>
+        {% if bq_list %}
+        <div class="catalog-table-scroll"><table class="catalog-table"><thead><tr><th scope="col">NOMOR</th><th scope="col">PROJECT</th><th scope="col">KONTRAKTOR</th><th scope="col">LOCATION</th><th scope="col">TOTAL</th><th scope="col">TINDAKAN</th></tr></thead><tbody>
+          {% for bq in bq_list %}<tr>
+            <td><code>{{ bq.nomor }}</code></td>
+            <td>{{ bq.project }}</td>
+            <td>{{ bq.kontraktor }}</td>
+            <td>{{ bq.location }}</td>
+            <td><strong>Rp {{ "{:,.0f}".format(bq.grand_total) }}</strong></td>
+            <td>
+              <a href="/bq/{{ bq.id }}/view" class="button presentation-toggle">Detail</a>
+              <a href="/bq/{{ bq.id }}/edit" class="button presentation-toggle">Edit</a>
+              <a href="/bq/{{ bq.id }}/view_pdf" target="_blank" class="button export">Preview</a>
+              <a href="/bq/{{ bq.id }}/pdf" class="button export">PDF</a>
+              <button type="button" class="button catalog-delete" data-delete-url="/bq/{{ bq.id }}/delete" data-delete-label="BQ {{ bq.nomor }}">Hapus</button>
+            </td>
+          </tr>{% endfor %}
+        </tbody></table></div>
+        {% else %}<div class="empty"><div class="empty-icon">▤</div><h3>Belum ada BQ</h3><p>Mulai dengan membuat Bill of Quantity baru.</p><a href="{{ url_for('bq_new') }}" class="button presentation-toggle">Buat BQ Baru</a></div>{% endif %}
+      </section>
+    </main>
+  </div>
+  <div id="toast" role="status" aria-live="polite" hidden></div>
+  <script src="{{ url_for('static', filename='table_search.js') }}"></script>
+  <script src="{{ url_for('static', filename='catalog_delete.js', v='20260916-1') }}"></script>
+</body>
+</html>

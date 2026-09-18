@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#163f36">
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+  <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='favicon_16x16.png') }}">
+  <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='favicon_32x32.png') }}">
+  <link rel="icon" type="image/png" sizes="48x48" href="{{ url_for('static', filename='favicon_48x48.png') }}">
+  <link rel="icon" type="image/png" sizes="64x64" href="{{ url_for('static', filename='favicon_64x64.png') }}">
+  <title>ReportEng — Detail Berita Acara</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="catalog-page">
+  {% include '_sidebar.html' %}
+  <div class="app-shell">
+    <header class="topbar"><a href="/berita_acara">← Daftar Berita Acara</a><div class="topbar-right"><span class="account-email">{{ g.identity.email }}</span><form class="logout-form" action="/logout" method="post"><input type="hidden" name="csrf" value="{{ session.get('csrf', '') }}"><button type="submit">Keluar</button></form></div></header>
+    <main>
+      <div class="page-heading"><div><div class="eyebrow">DOKUMENTASI ENGINEERING</div><h1>Detail Berita Acara<span>.</span></h1><p>Informasi lengkap berita acara kejadian engineering.</p></div></div>
+      
+      <section class="table-card">
+        <div class="table-heading"><div><h2><code>{{ berita.nomor }}</code></h2><p>{{ berita.tanggal.strftime('%d/%m/%Y') }} · {{ berita.lokasi }}</p></div></div>
+        
+        <div class="detail-section">
+          <h3>Informasi Kejadian</h3>
+          <div class="detail-grid">
+            <div class="detail-item"><strong>Nomor:</strong><span>{{ berita.nomor }}</span></div>
+            <div class="detail-item"><strong>Tanggal:</strong><span>{{ berita.tanggal.strftime('%d/%m/%Y') }}</span></div>
+            <div class="detail-item"><strong>Waktu:</strong><span>{{ berita.waktu }}</span></div>
+            <div class="detail-item"><strong>Lokasi:</strong><span>{{ berita.lokasi }}</span></div>
+          </div>
+        </div>
+
+        <div class="detail-section">
+          <h3>Deskripsi Kejadian</h3>
+          <div class="detail-content">{{ berita.deskripsi }}</div>
+        </div>
+
+        <div class="detail-section">
+          <h3>Analisa dan Kronologi</h3>
+          <div class="detail-content">{{ berita.analisa }}</div>
+        </div>
+
+        <div class="detail-section">
+          <h3>Langkah Pencegahan dan Solusi</h3>
+          <div class="detail-content">{{ berita.solusi }}</div>
+        </div>
+
+        {% if berita.gambar_paths %}
+        <div class="detail-section">
+          <h3>Lampiran Foto</h3>
+          <div class="image-gallery">
+            {% for img_path in berita.gambar_paths.split(',') %}
+            {% if img_path.strip() %}
+            <div class="image-item">
+              <a href="/uploads/{{ img_path.strip() }}" target="_blank">
+                <img src="/uploads/{{ img_path.strip() }}" alt="Foto lampiran">
+              </a>
+            </div>
+            {% endif %}
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+
+        <div class="detail-section">
+          <h3>Approval / Tanda Tangan</h3>
+          <div class="approval-grid">
+            <div class="approval-card">
+              <div class="approval-label">Dilaporkan Oleh:</div>
+              <div class="approval-name">{{ berita.staff_engineering }}</div>
+              <div class="approval-role">Staff Engineering</div>
+            </div>
+            <div class="approval-card">
+              <div class="approval-label">Diperiksa Oleh:</div>
+              <div class="approval-name">{{ berita.supervisor }}</div>
+              <div class="approval-role">Supervisor</div>
+            </div>
+            <div class="approval-card">
+              <div class="approval-label">Diketahui Oleh:</div>
+              <div class="approval-name">{{ berita.asst_manager }}</div>
+              <div class="approval-role">Engineering Asst. Manager</div>
+            </div>
+            <div class="approval-card">
+              <div class="approval-label">Diketahui Oleh:</div>
+              <div class="approval-name">{{ berita.property_manager }}</div>
+              <div class="approval-role">Property Manager</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="detail-actions">
+          <a href="/berita_acara/{{ berita.id }}/edit" class="button presentation-toggle">Edit</a>
+          <a href="/berita_acara/{{ berita.id }}/pdf" class="button export">Download PDF</a>
+          <a href="/berita_acara/{{ berita.id }}/view_pdf" target="_blank" class="button export">Preview PDF</a>
+          <a href="/berita_acara" class="button presentation-toggle">Kembali</a>
+        </div>
+      </section>
+    </main>
+  </div>
+  <div id="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>

@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#163f36">
+  <title>WPR - ReportEng</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script defer src="{{ url_for('static', filename='pdf_upload.js') }}"></script>
+</head>
+<body class="wpr-page">
+  {% include '_sidebar.html' %}
+  <div class="app-shell">
+     <header class="topbar"><div>Workspace <span>/</span> <strong>WPR</strong></div><div class="topbar-right"><span class="today" id="today"></span><span class="account-email" title="{{ g.identity.email }}">{{ g.identity.email }}</span><form class="logout-form" action="/logout" method="post"><input type="hidden" name="csrf" value="{{ session.get('csrf', '') }}"><button type="submit">Keluar</button></form></div></header>
+    <main>
+      <div class="wpr-controls">
+        <div class="page-heading"><div><h1>WPR<span>.</span></h1><p>Upload PDF, periksa hasilnya, lalu simpan.</p></div></div>
+      
+      <section class="filter-card pdf-upload-card" aria-label="WPR">
+        <form id="pdf-upload-form" enctype="multipart/form-data">
+          <input type="hidden" name="csrf" value="{{ session.get('csrf', '') }}">
+          <div class="upload-area">
+            <input type="file" id="pdf-file" name="pdf_file" accept=".pdf" required>
+            <label for="pdf-file" class="upload-label">
+              <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+              <span>Klik untuk memilih file PDF atau drag & drop</span>
+              <small>Hanya file PDF yang diperbolehkan</small>
+            </label>
+          </div>
+          <button type="submit" class="button apply" id="upload-btn" disabled>Preview PDF <span>→</span></button>
+        </form>
+      </section>
+      </div>
+
+      <section class="filter-card pdf-editor" id="editor-section" hidden>
+        <div class="section-title"><h2 id="editor-title">Preview hasil ekstraksi</h2></div>
+        <p class="pdf-hint">Periksa dan koreksi setiap kolom sebelum menyimpan.</p>
+        <p class="pdf-warning" id="parse-warning" role="status" hidden></p>
+        <p class="pdf-hint" id="source-pdf-name" hidden></p>
+        <form id="record-form">
+          <div class="pdf-fields">
+            <label>Tanggal<input type="date" name="tanggal" required></label>
+            <label>No WPR<input name="no_wpr" required></label>
+            <label>Deskripsi<textarea name="deskripsi" required></textarea></label>
+            <label>Type Budget<input name="type_budget" required></label>
+            <label>Status<select name="status"><option value="">Pilih status</option><option>Cancel</option><option>Rejected</option><option>SPK Created</option><option>PO Created</option></select></label>
+            <label>Keterangan<textarea name="keterangan"></textarea></label>
+          </div>
+          <label id="pdf-replacement-field" class="pdf-replacement-field" hidden>Lampirkan atau ganti file PDF (opsional)<input type="file" name="pdf_file" accept=".pdf"></label>
+          <div class="pdf-form-actions"><button type="button" class="button" id="cancel-edit">Batal</button><button type="submit" class="button apply" id="save-record">Simpan Data</button></div>
+        </form>
+      </section>
+
+      <section class="table-card" id="result-section">
+        <div class="wpr-filter-bar"><label>Dari tanggal<input type="date" id="wpr-filter-start"></label><label>Sampai tanggal<input type="date" id="wpr-filter-end"></label><label>Type Budget<select id="wpr-filter-budget"><option value="">Semua</option></select></label><label>Status<select id="wpr-filter-status"><option value="">Semua</option><option>Cancel</option><option>Rejected</option><option>SPK Created</option><option>PO Created</option></select></label><button type="button" class="text-button" id="wpr-filter-reset">Reset</button></div>
+        <div class="table-heading"><div><h2>Data Purchase Request <span class="count-pill" id="pdf-count">0</span></h2><p>Data WPR Final Approve yang sudah diajukan di GP</p></div><label class="pdf-search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input id="pdf-search-input" type="search" placeholder="Cari WPR..." aria-label="Cari data WPR"></label></div>
+        <div id="pdf-notice" role="status" aria-live="polite" hidden></div>
+        <div class="table-scroll"><table class="pdf-table"><thead><tr><th>TANGGAL</th><th>NO WPR</th><th>DESKRIPSI</th><th>TYPE BUDGET</th><th>STATUS</th><th>KETERANGAN</th><th>AKSI</th></tr></thead><tbody id="pdf-rows"></tbody></table></div>
+        <div id="pdf-empty" class="empty" hidden><div class="empty-icon">▤</div><h3 id="pdf-empty-title">Belum ada data</h3><p id="pdf-empty-description">Upload file PDF untuk mengekstrak data purchase request.</p></div>
+      </section>
+    </main>
+  </div>
+  <dialog id="record-preview" class="pdf-dialog"><h2>Preview Data Purchase Request</h2><div id="preview-fields"></div><button type="button" class="button apply" id="close-preview">Tutup</button></dialog>
+  <div id="toast" role="status" hidden></div>
+</body>
+</html>

@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#163f36">
+  <title>ReportEng — Tabel Supabase</title>
+  <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='items.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='supabase_tables.css') }}">
+</head>
+<body class="catalog-page">
+  {% include '_sidebar.html' %}
+  <div class="app-shell">
+    <header class="topbar"><a href="/">← Laporan pekerjaan</a><div class="topbar-right"><span class="account-email">{{ g.identity.email }}</span><form class="logout-form" action="/logout" method="post"><input type="hidden" name="csrf" value="{{ session.get('csrf', '') }}"><button type="submit">Keluar</button></form></div></header>
+    <main>
+      <div class="page-heading"><div><div class="eyebrow">DATA ENGINEERING</div><h1>{{ 'Logsheet pemeriksaan' if table == 'logsheets' else 'Tabel Supabase' }}<span>.</span></h1><p>{{ 'Catatan kondisi dan hasil pemeriksaan per item.' if table == 'logsheets' else 'Lihat data terbaru dari database Supabase.' }}</p></div></div>
+      <section class="filter-card catalog-search" aria-label="Pilih tabel" {{ 'hidden' if table == 'logsheets' else '' }}>
+        <form method="get" action="{{ url_for('supabase_tables') }}">
+          <label for="table-name">Nama tabel</label>
+          <div class="catalog-search-row"><input id="table-name" name="table" value="{{ table }}" list="table-options" placeholder="Masukkan nama tabel" maxlength="63" pattern="[A-Za-z_][A-Za-z0-9_]*" required><datalist id="table-options">{% for name in tables %}<option value="{{ name }}">{% endfor %}</datalist><button class="button export" type="submit">Tampilkan</button></div>
+          <p>Gunakan nama tabel persis seperti di Supabase. Maksimal 50 baris per halaman.</p>
+        </form>
+      </section>
+      <section class="table-card catalog-results" aria-label="Data tabel">
+        <div class="table-heading"><div><h2>{{ 'Logsheet' if table == 'logsheets' else (table or 'Data tabel') }}{% if total is not none %} <span class="count-pill">{{ total }}</span>{% endif %}</h2><p>{{ 'Pilih catatan, lalu telusuri item pemeriksaannya.' if table == 'logsheets' else 'Data ditampilkan sesuai kolom sumber.' }}</p></div>{% if table %}<a class="button presentation-toggle" href="{{ url_for('supabase_tables', table=table, page=page, log=request.args.get('log', ''), q=log_query, group=log_group, filled='1' if filled_only else '') }}">Muat ulang</a>{% endif %}</div>
+        {% if error %}<div class="empty" role="alert"><h3>Data belum dapat dimuat</h3><p>{{ error }}</p></div>
+        {% elif rows and table == 'logsheets' %}{% include '_logsheet_items.html' %}
+        {% elif rows %}<div class="catalog-table-scroll" tabindex="0" role="region" aria-label="Tabel data, geser untuk melihat semua kolom"><table class="supabase-table"><thead><tr>{% for column in columns %}<th scope="col">{{ column }}</th>{% endfor %}</tr></thead><tbody>{% for row in rows %}<tr>{% for column in columns %}{% set value = row.get(column) %}<td>{% if value is none %}<span class="null-value">NULL</span>{% elif value is mapping %}<details><summary>Lihat rincian ({{ value|length }})</summary><dl class="payload-details">{% for key, item in value.items() %}<dt>{{ key }}</dt><dd>{% if item is none %}—{% elif item is mapping or (item is sequence and item is not string) %}{{ item|tojson }}{% else %}{{ item }}{% endif %}</dd>{% endfor %}</dl></details>{% elif value is sequence and value is not string %}<details><summary>Lihat JSON</summary><pre>{{ value|tojson(indent=2) }}</pre></details>{% elif value is sameas true %}true{% elif value is sameas false %}false{% else %}{{ value }}{% endif %}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>
+        {% elif table %}<div class="empty"><h3>Tidak ada data pada halaman ini</h3><p>Tabel mungkin kosong atau belum ada baris yang dapat diakses dengan izin saat ini.</p>{% if page > 1 %}<a href="{{ url_for('supabase_tables', table=table) }}">Kembali ke halaman pertama</a>{% endif %}</div>
+        {% else %}<div class="empty"><h3>Pilih tabel untuk mulai</h3><p>Masukkan nama tabel di atas, lalu klik Tampilkan.</p></div>{% endif %}
+        {% if table and not error %}<div class="table-footer"><span role="status">Menampilkan {{ start }}–{{ end }}{% if total is not none %} dari {{ total }}{% endif %} {{ 'catatan tersedia pada pilihan logsheet' if table == 'logsheets' else 'baris' }}</span><nav class="catalog-pagination" aria-label="Halaman tabel">{% if page > 1 %}<a href="{{ url_for('supabase_tables', table=table, page=page-1) }}">← Sebelumnya</a>{% endif %}<span>Halaman {{ page }}</span>{% if has_next %}<a href="{{ url_for('supabase_tables', table=table, page=page+1) }}">Berikutnya →</a>{% endif %}</nav></div>{% endif %}
+      </section>
+      <p class="catalog-note">Sumber: eibnrigeisychgfwowrx.supabase.co · Hanya baris yang diizinkan oleh kebijakan akses Supabase yang ditampilkan.</p>
+    </main>
+  </div>
+</body>
+</html>
