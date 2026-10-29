@@ -28,7 +28,7 @@
           <div><label for="location">Location *</label><input type="text" id="location" name="location" required placeholder="Lokasi pekerjaan" value="{% if edit_mode %}{{ bq.location }}{% endif %}"></div>
           
           <div style="margin: 24px 0;">
-            <h3 style="font-size:15px;font-weight:600;color:#245b4b;margin:0 0 16px 0;">Item Pekerjaan</h3>
+            <h3 style="font-size:15px;font-weight:600;color:#000000;margin:0 0 16px 0;">Item Pekerjaan</h3>
             <div id="bqItemsBody">
               {% if edit_mode %}
                 {% for item in bq.items %}

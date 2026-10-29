@@ -64,18 +64,18 @@
           </div>
           
           <div style="display:flex;justify-content:flex-end;margin-top:20px;">
-            <table style="border-collapse:collapse;font-size:13px;width:100%;max-width:340px;background:#f5f7f8;border:1px solid var(--border);border-radius:6px;">
+            <table style="border-collapse:collapse;font-size:13px;width:100%;max-width:340px;background:#f5f7f8;border:1px solid var(--border);border-radius:6px;color:#000000;">
               <tr style="border-bottom:1px solid var(--border);">
-                <td style="padding:12px;font-weight:600;color:#5b6d63;">Sub Total:</td>
-                <td style="padding:12px;text-align:right;font-weight:600;">Rp {{ "{:,.0f}".format(bq.subtotal) }}</td>
+                <td style="padding:12px;font-weight:600;color:#000000;">Sub Total:</td>
+                <td style="padding:12px;text-align:right;font-weight:600;color:#000000;">Rp {{ "{:,.0f}".format(bq.subtotal) }}</td>
               </tr>
               <tr style="border-bottom:1px solid var(--border);">
-                <td style="padding:12px;font-weight:600;color:#5b6d63;">PPN 11%:</td>
-                <td style="padding:12px;text-align:right;font-weight:600;">Rp {{ "{:,.0f}".format(bq.ppn) }}</td>
+                <td style="padding:12px;font-weight:600;color:#000000;">PPN 11%:</td>
+                <td style="padding:12px;text-align:right;font-weight:600;color:#000000;">Rp {{ "{:,.0f}".format(bq.ppn) }}</td>
               </tr>
               <tr style="background:#eaf2ee;">
-                <td style="padding:14px;font-weight:700;color:#245b4b;">Grand Total:</td>
-                <td style="padding:14px;text-align:right;font-weight:700;color:#245b4b;font-size:15px;">Rp {{ "{:,.0f}".format(bq.grand_total) }}</td>
+                <td style="padding:14px;font-weight:700;color:#000000;">Grand Total:</td>
+                <td style="padding:14px;text-align:right;font-weight:700;color:#000000;font-size:15px;">Rp {{ "{:,.0f}".format(bq.grand_total) }}</td>
               </tr>
             </table>
           </div>

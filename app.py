@@ -8,6 +8,9 @@ from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 from urllib.parse import urlparse
 
+import warnings
+warnings.filterwarnings('ignore', message=r'.*urllib3 v2 only supports OpenSSL.*')
+
 import requests
 from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request, send_file, session, redirect, url_for, g
@@ -406,6 +409,178 @@ def pricelist():
 def reports():
     rows, options, _, _ = filtered_reports(request.args)
     return jsonify(rows=rows, options=options, total=len(rows))
+
+
+def format_unit_area(value: str) -> str:
+    """Format unit area identically to client-side formatUnitArea (e.g. CTA-36B or Title Case)."""
+    text = str(value or '').strip()
+    if not text:
+        return '—'
+    m = re.match(r'^([a-zA-Z]{1,8})[\s-]*(\d+[a-zA-Z]?)$', text)
+    if m:
+        return f'{m.group(1).upper()}-{m.group(2).upper()}'
+    
+    lowered = text.lower()
+    titled = re.sub(r'(^|[\s/()\-–])([a-zA-Z])', lambda match: match.group(1) + match.group(2).upper(), lowered)
+    return titled or '—'
+
+
+def format_report_item_text(r: dict) -> str:
+    """Format single report item identically to the View menu (Unit Pekerjaan (Status))."""
+    raw_unit = str(r.get('unit_area') or r.get('area_kerja') or '').strip()
+    unit = format_unit_area(raw_unit) if raw_unit else ''
+
+    job = str(r.get('pekerjaan') or '').strip()
+    job_flat = ' - '.join(part.strip() for part in re.split(r'[\r\n]+', job) if part.strip())
+
+    raw_status = str(r.get('status') or '').strip()
+    if raw_status.startswith('ProgressStatus.'):
+        raw_status = raw_status.replace('ProgressStatus.', '')
+    status_text = raw_status.strip()
+
+    # Avoid duplicating unit if job_flat already starts with unit
+    if unit and unit != '—':
+        escaped_unit = re.escape(unit).replace(r'\-', r'[-\s]?')
+        job_flat = re.sub(rf'^{escaped_unit}\s*[-:]?\s*', '', job_flat, flags=re.IGNORECASE).strip()
+
+    # Avoid duplicate status at end
+    if status_text:
+        escaped_status = re.escape(status_text)
+        job_flat = re.sub(rf'\s*\({escaped_status}\)\.?\s*$', '', job_flat, flags=re.IGNORECASE).strip()
+    job_flat = re.sub(r'\s*\((done|berlanjut|pending|selesai|proses|dalam proses)\)\.?\s*$', '', job_flat, flags=re.IGNORECASE).strip()
+
+    if job_flat:
+        capitalized_desc = job_flat[0].upper() + job_flat[1:]
+    else:
+        capitalized_desc = '—' if not unit or unit == '—' else ''
+
+    parts = []
+    if unit and unit != '—':
+        parts.append(unit)
+    if capitalized_desc:
+        parts.append(capitalized_desc)
+
+    line_text = ' '.join(parts).strip()
+    if status_text:
+        line_text = f'{line_text} ({status_text})'
+    return line_text
+
+
+def is_shift_area(value: str) -> bool:
+    """Check if the area name indicates a work shift (e.g. Shift Malam, Shift Pagi, Shift Siang)."""
+    text = str(value or '').strip()
+    return bool(re.search(r'\bshift\b', text, flags=re.IGNORECASE))
+
+
+def is_shift_report(r: dict) -> bool:
+    """Determine if a report belongs to shift activities rather than regular routine maintenance."""
+    area = str(r.get('area_kerja') or '').strip()
+    unit = str(r.get('unit_area') or '').strip()
+    return is_shift_area(area) or bool(re.match(r'^\s*shift\b', unit, flags=re.IGNORECASE))
+
+
+def area_sort_key(area: str):
+    """Sort areas: Tower first (alphabetical/natural), then Public Area, then all others."""
+    area_clean = str(area or '').strip()
+    area_lower = area_clean.lower()
+
+    # Priority 0: Tower
+    if re.search(r'\btower\b', area_lower):
+        m = re.search(r'\btower\s+([a-z0-9]+)', area_lower)
+        sub_key = m.group(1) if m else area_lower
+        if sub_key.isdigit():
+            sub_key = f'{int(sub_key):05d}'
+        return (0, sub_key, area_lower)
+
+    # Priority 1: Public Area
+    if re.search(r'\b(publi[ck]|pabli[ck])\b', area_lower) or 'public' in area_lower or 'publik' in area_lower:
+        return (1, area_lower)
+
+    # Priority 2: Other areas
+    return (2, area_lower)
+
+
+def format_daily_recap(rows, title='*Tim RM Reguler PIC Tower*'):
+    clean_title = (title or '').strip()
+    if clean_title and not (clean_title.startswith('*') and clean_title.endswith('*')):
+        clean_title = f'*{clean_title}*'
+
+    # Filter out shift reports as requested
+    valid_rows = [r for r in (rows or []) if not is_shift_report(r)]
+
+    if not valid_rows:
+        header = f'{clean_title}\n\n' if clean_title else ''
+        return f'{header}(Tidak ada pekerjaan pada tanggal ini)'
+
+    # Group valid rows by area_kerja
+    groups = {}
+    for r in valid_rows:
+        area = str(r.get('area_kerja') or '').strip() or 'Area Lainnya'
+        groups.setdefault(area, []).append(r)
+
+    # Sort areas: Tower first, then Public Area, then others
+    sorted_areas = sorted(groups.keys(), key=area_sort_key)
+
+    sections = []
+    if clean_title:
+        sections.append(clean_title)
+
+    for area in sorted_areas:
+        area_heading = f'*{area}*' if not (area.startswith('*') and area.endswith('*')) else area
+        lines = [area_heading]
+
+        for r in groups[area]:
+            item_text = format_report_item_text(r)
+            lines.append(f'• {item_text}')
+
+        sections.append('\n'.join(lines))
+
+    return '\n\n'.join(sections)
+
+
+@app.get('/api/reports/recap')
+def reports_recap():
+    date_str = request.args.get('date', '').strip()
+    area_filter = request.args.get('area_kerja', '').strip()
+    title = request.args.get('title', '*Tim RM Reguler PIC Tower*').strip()
+    source = request.args.get('source', 'engineering').strip()
+    
+    if not date_str:
+        today_local = datetime.now(report_timezone()).date()
+        date_str = today_local.isoformat()
+    
+    try:
+        recap_date = date.fromisoformat(date_str)
+    except ValueError:
+        return jsonify(error='Format tanggal harus YYYY-MM-DD.', ok=False), 400
+
+    try:
+        rows = (fetch_reports(recap_date, recap_date, g.identity['token'], source='dw') if source == 'dw'
+                else fetch_reports(recap_date, recap_date, g.identity['token']))
+    except ReportError as exc:
+        return jsonify(error=str(exc), ok=False), exc.status
+
+    # Filter out shifts
+    non_shift_rows = [r for r in rows if not is_shift_report(r)]
+
+    if area_filter:
+        filtered_rows = [r for r in non_shift_rows if r.get('area_kerja') == area_filter]
+    else:
+        filtered_rows = non_shift_rows
+        
+    text_content = format_daily_recap(filtered_rows, title=title)
+    areas = sorted(
+        {str(r.get('area_kerja')).strip() for r in non_shift_rows if str(r.get('area_kerja') or '').strip()},
+        key=area_sort_key
+    )
+    
+    return jsonify(
+        ok=True,
+        date=date_str,
+        text=text_content,
+        count=len(filtered_rows),
+        areas=areas
+    )
 
 
 @app.get('/api/reports/<report_id>')

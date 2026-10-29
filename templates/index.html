@@ -9,15 +9,15 @@
   <link rel="icon" type="image/png" sizes="48x48" href="{{ url_for('static', filename='favicon_48x48.png') }}">
   <link rel="icon" type="image/png" sizes="64x64" href="{{ url_for('static', filename='favicon_64x64.png') }}">
   <title>ReportEng — {{ report_title|default('Laporan Pekerjaan') }}</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20260915-view') }}">
-  <script defer src="{{ url_for('static', filename='app.js', v='20260915-view3') }}"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='20261022-recap-tnr12') }}">
+  <script defer src="{{ url_for('static', filename='app.js', v='20261022-recap-tnr12') }}"></script>
 </head>
 <body data-reports-url="{{ reports_url|default('/api/reports') }}" data-export-url="{{ export_url|default('/export') }}" data-export-prefix="{{ export_prefix|default('laporan') }}" data-report-timezone="{{ report_timezone }}">
   {% include '_sidebar.html' %}
   <div class="app-shell">
      <header class="topbar"><div>Workspace <span>/</span> <strong>{{ report_title|default('Laporan Pekerjaan') }}</strong></div><div class="topbar-right"><span class="today" id="today"></span><span class="account-email" title="{{ g.identity.email }}">{{ g.identity.email }}</span><form class="logout-form" action="/logout" method="post"><input type="hidden" name="csrf" value="{{ session.get('csrf', '') }}"><button type="submit">Keluar</button></form></div></header>
     <main>
-      <div class="page-heading"><div><div class="eyebrow">ENGINEERING WORKSPACE</div><h1>{{ report_heading|default('Laporan Pekerjaan Engineering') }}<span>.</span></h1><p>{{ report_description|default('Aktivitas tim, progres pekerjaan, dan dokumentasi Pekerjaan Engineering') }}</p></div><div class="heading-actions"><a class="button presentation-toggle" href="/kode-item">Cari kode item</a><button type="button" class="button presentation-toggle" id="presentation-toggle" aria-pressed="false">Mode presentasi</button><button type="button" class="button export" id="export" disabled><svg viewBox="0 0 24 24"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg><span>Export Excel</span></button></div></div>
+      <div class="page-heading"><div><div class="eyebrow">ENGINEERING WORKSPACE</div><h1>{{ report_heading|default('Laporan Pekerjaan Engineering') }}<span>.</span></h1><p>{{ report_description|default('Aktivitas tim, progres pekerjaan, dan dokumentasi Pekerjaan Engineering') }}</p></div><div class="heading-actions"><button type="button" class="button recap-button" id="recap-toggle" onclick="openRecapModal()" title="Rekap laporan harian berdasarkan area kerja"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg><span>Rekap Harian</span></button><a class="button presentation-toggle" href="/kode-item">Cari kode item</a><button type="button" class="button presentation-toggle" id="presentation-toggle" aria-pressed="false">Mode presentasi</button><button type="button" class="button export" id="export" disabled><svg viewBox="0 0 24 24"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg><span>Export Excel</span></button></div></div>
       <div class="presentation-context" id="presentation-context" hidden><span id="presentation-summary"></span><span>← → Halaman <span aria-hidden="true">·</span> Esc Keluar</span></div>
       <div class="stats">
         <section class="stat"><div><span>Total pekerjaan</span><span class="stat-icon neutral">▤</span></div><strong id="total">—</strong><p>Dalam hasil filter</p></section>
@@ -45,6 +45,110 @@
   </div>
   <dialog id="photo-dialog"><div class="modal-top"><strong>Dokumentasi pekerjaan</strong><button type="button" id="close-photo" aria-label="Tutup foto">×</button></div><div id="photos"></div></dialog>
   <dialog id="report-dialog" class="report-dialog"><div class="modal-top"><strong>Detail laporan</strong><button type="button" id="close-report" aria-label="Tutup detail">×</button></div><div id="report-detail"></div></dialog>
+  <dialog id="recap-dialog" class="recap-dialog">
+    <div class="modal-top">
+      <div class="recap-dialog-title">
+        <svg viewBox="0 0 24 24" class="recap-title-icon"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+        <strong>Rekap Laporan Harian</strong>
+        <span id="recap-count" class="count-pill">0 pekerjaan</span>
+      </div>
+      <button type="button" id="close-recap" onclick="closeRecapModal()" aria-label="Tutup rekap">×</button>
+    </div>
+    <div class="recap-controls">
+      <div class="recap-filter-row">
+        <div class="recap-field">
+          <label for="recap-date">Tanggal Harian</label>
+          <input type="date" id="recap-date" aria-label="Tanggal rekap">
+        </div>
+        <div class="recap-field">
+          <label for="recap-area">Area Kerja</label>
+          <select id="recap-area" aria-label="Filter area kerja">
+            <option value="">Semua Area Kerja</option>
+          </select>
+        </div>
+        <div class="recap-field recap-field-title">
+          <label for="recap-title">Judul Tim / Header</label>
+          <input type="text" id="recap-title" value="*Tim RM Reguler PIC Tower*" placeholder="*Judul Header*">
+        </div>
+        <div class="recap-field-btn">
+          <button type="button" class="button apply" id="recap-reload">Muat Rekap</button>
+        </div>
+      </div>
+    </div>
+    <div class="recap-content-wrap">
+      <div class="recap-textarea-header">
+        <span>Format Teks (WhatsApp / Dokumen):</span>
+        <div class="recap-actions-right">
+          <button type="button" class="button recap-action-btn" id="recap-copy-btn">
+            <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            <span>Salin Teks</span>
+          </button>
+          <button type="button" class="button recap-action-btn" id="recap-download-btn" title="Download teks rekap sebagai file .txt">
+            <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span>Unduh .txt</span>
+          </button>
+        </div>
+      </div>
+      <textarea id="recap-result" class="recap-textarea" rows="15" placeholder="Memuat rekap laporan..." spellcheck="false"></textarea>
+      <div class="recap-footer-hint">
+        <small>Format siap kirim untuk WhatsApp atau dokumen Word. Teks di atas dapat langsung diedit sebelum disalin.</small>
+      </div>
+    </div>
+  </dialog>
   <div id="toast" role="status" hidden></div>
+  <script>
+    window.openRecapModal = function() {
+      const dialog = document.getElementById('recap-dialog');
+      if (!dialog) return;
+      if (typeof dialog.showModal === 'function') {
+        try {
+          if (!dialog.open) dialog.showModal();
+        } catch (err) {
+          dialog.setAttribute('open', '');
+        }
+      } else {
+        dialog.setAttribute('open', '');
+      }
+      if (typeof window.loadRecapFromApp === 'function') {
+        window.loadRecapFromApp();
+      } else {
+        const dateEl = document.getElementById('recap-date');
+        const endEl = document.getElementById('end');
+        const startEl = document.getElementById('start');
+        const now = new Date();
+        const today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+        if (dateEl && !dateEl.value) {
+          dateEl.value = (endEl && endEl.value) || (startEl && startEl.value) || today;
+        }
+        const resultEl = document.getElementById('recap-result');
+        if (resultEl) resultEl.value = 'Memuat rekap laporan…';
+        const targetDate = dateEl ? dateEl.value : today;
+        const isDw = window.location.pathname.includes('dw');
+        fetch('/api/reports/recap?date=' + encodeURIComponent(targetDate) + '&source=' + (isDw ? 'dw' : 'engineering'))
+          .then(r => r.json())
+          .then(data => {
+            if (resultEl) resultEl.value = data.text || '';
+            const countEl = document.getElementById('recap-count');
+            if (countEl) countEl.textContent = (data.count || 0) + ' pekerjaan';
+          })
+          .catch(e => {
+            if (resultEl) resultEl.value = 'Gagal memuat rekap: ' + e.message;
+          });
+      }
+    };
+    window.closeRecapModal = function() {
+      const dialog = document.getElementById('recap-dialog');
+      if (!dialog) return;
+      if (typeof dialog.close === 'function') {
+        try {
+          dialog.close();
+        } catch (e) {
+          dialog.removeAttribute('open');
+        }
+      } else {
+        dialog.removeAttribute('open');
+      }
+    };
+  </script>
 </body>
 </html>

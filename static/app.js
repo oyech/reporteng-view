@@ -63,17 +63,51 @@ function formatUnitArea(value) {
   const text = String(value || '').trim();
   const unit = /^([a-z]{1,8})[\s-]*(\d+[a-z]?)$/i.exec(text);
   if (unit) return `${unit[1].toUpperCase()}-${unit[2].toUpperCase()}`;
-  return text.toLocaleLowerCase('id-ID').replace(/(^|[\s/()-])([a-z])/g, (_, separator, letter) => separator + letter.toLocaleUpperCase('id-ID')) || '—';
+  return text.toLocaleLowerCase('id-ID').replace(/(^|[\s/()\-–])([a-z])/g, (_, separator, letter) => separator + letter.toLocaleUpperCase('id-ID')) || '—';
+}
+function formatReportItem(report, { flatten = false } = {}) {
+  const rawUnit = String(report.unit_area || report.area_kerja || '').trim();
+  const unit = rawUnit ? formatUnitArea(rawUnit) : '';
+  let description = String(report.pekerjaan || '').trim();
+  if (flatten) {
+    description = description.split(/[\r\n]+/).map(s => s.trim()).filter(Boolean).join(' - ');
+  }
+
+  // Avoid duplicating unit if description already starts with unit
+  if (unit && unit !== '—') {
+    const escapedUnit = unit.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/-/g, '[-\\s]?');
+    const unitRegex = new RegExp(`^${escapedUnit}\\s*[-:]?\\s*`, 'i');
+    if (unitRegex.test(description)) {
+      description = description.replace(unitRegex, '').trim();
+    }
+  }
+
+  let statusText = report.status ? String(report.status).replace(/^ProgressStatus\./, '').trim() : '';
+
+  // Avoid duplicate status if description already ends with it
+  if (statusText) {
+    const escapedStatus = statusText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const statusEndRegex = new RegExp(`\\s*\\(${escapedStatus}\\)\\.?\\s*$`, 'i');
+    description = description.replace(statusEndRegex, '').trim();
+  }
+  description = description.replace(/\s*\((done|berlanjut|pending|selesai|proses|dalam proses)\)\.?\s*$/i, '').trim();
+
+  const capitalizedDescription = description ? description[0].toLocaleUpperCase('id-ID') + description.slice(1) : (unit && unit !== '—' ? '' : '—');
+
+  return { unit, capitalizedDescription, statusText };
 }
 function viewReport(report) {
   const detail = $('report-detail');
   detail.replaceChildren();
   const line = element('p', undefined, 'report-summary-line');
-  const description = String(report.pekerjaan || '—').trim();
-  const capitalizedDescription = description ? description[0].toLocaleUpperCase('id-ID') + description.slice(1) : '—';
-  line.append(element('strong', formatUnitArea(report.unit_area || report.area_kerja)));
-  line.append(document.createTextNode(` ${capitalizedDescription}`));
-  if (report.status) line.append(document.createTextNode(` (${String(report.status).replace(/^ProgressStatus\./, '')})`));
+  const { unit, capitalizedDescription, statusText } = formatReportItem(report, { flatten: false });
+  if (unit && unit !== '—') {
+    line.append(element('strong', unit));
+    if (capitalizedDescription) line.append(document.createTextNode(` ${capitalizedDescription}`));
+  } else {
+    line.append(document.createTextNode(capitalizedDescription || '—'));
+  }
+  if (statusText) line.append(document.createTextNode(` (${statusText})`));
   detail.append(line);
   $('report-dialog').showModal();
 }
@@ -347,9 +381,267 @@ function setPresentation(enabled) {
 }
 $('presentation-toggle').onclick = () => setPresentation(!state.presenting);
 document.addEventListener('keydown', event => {
-  if (!state.presenting || $('photo-dialog').open || $('report-dialog').open || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.target.closest('input, select, textarea, [contenteditable]')) return;
+  if (!state.presenting || $('photo-dialog').open || $('report-dialog').open || $('recap-dialog')?.open || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.target.closest('input, select, textarea, [contenteditable]')) return;
   if (event.key === 'Escape') setPresentation(false);
   if (event.key === 'ArrowRight' && !$('next').disabled) { event.preventDefault(); $('next').click(); }
   if (event.key === 'ArrowLeft' && !$('prev').disabled) { event.preventDefault(); $('prev').click(); }
 });
+
+function isShiftArea(value) {
+  const text = String(value || '').trim();
+  return /\bshift\b/i.test(text);
+}
+
+function isShiftReport(report) {
+  const area = String(report.area_kerja || '').trim();
+  const unit = String(report.unit_area || '').trim();
+  return isShiftArea(area) || /^\s*shift\b/i.test(unit);
+}
+
+function getAreaSortKey(area) {
+  const clean = String(area || '').trim();
+  const lower = clean.toLowerCase();
+  if (/\btower\b/i.test(lower)) {
+    const match = /\btower\s+([a-z0-9]+)/i.exec(lower);
+    let sub = match ? match[1] : lower;
+    if (/^\d+$/.test(sub)) {
+      sub = sub.padStart(5, '0');
+    }
+    return `0_${sub}_${lower}`;
+  }
+  if (/\b(publi[ck]|pabli[ck])\b/i.test(lower) || lower.includes('public') || lower.includes('publik')) {
+    return `1_${lower}`;
+  }
+  return `2_${lower}`;
+}
+
+function formatDailyRecapClient(rows, title) {
+  let cleanTitle = (title || '').trim();
+  if (cleanTitle && (!cleanTitle.startsWith('*') || !cleanTitle.endsWith('*'))) {
+    cleanTitle = `*${cleanTitle}*`;
+  }
+  const validRows = (rows || []).filter(r => !isShiftReport(r));
+  if (validRows.length === 0) {
+    const header = cleanTitle ? `${cleanTitle}\n\n` : '';
+    return `${header}(Tidak ada pekerjaan pada tanggal ini)`;
+  }
+  const groups = {};
+  validRows.forEach(r => {
+    const area = String(r.area_kerja || '').trim() || 'Area Lainnya';
+    if (!groups[area]) groups[area] = [];
+    groups[area].push(r);
+  });
+
+  const sortedAreas = Object.keys(groups).sort((a, b) => {
+    const keyA = getAreaSortKey(a);
+    const keyB = getAreaSortKey(b);
+    return keyA.localeCompare(keyB, 'id-ID', { sensitivity: 'base' });
+  });
+  const sections = [];
+  if (cleanTitle) sections.push(cleanTitle);
+
+  sortedAreas.forEach(area => {
+    const areaHeading = (!area.startsWith('*') || !area.endsWith('*')) ? `*${area}*` : area;
+    const lines = [areaHeading];
+
+    groups[area].forEach(r => {
+      const { unit, capitalizedDescription, statusText } = formatReportItem(r, { flatten: true });
+      const parts = [];
+      if (unit && unit !== '—') parts.push(unit);
+      if (capitalizedDescription) parts.push(capitalizedDescription);
+      let itemText = parts.join(' ').trim();
+      if (statusText) {
+        itemText = `${itemText} (${statusText})`;
+      }
+      lines.push(`• ${itemText}`);
+    });
+
+    sections.push(lines.join('\n'));
+  });
+
+  return sections.join('\n\n');
+}
+
+function initRecapFeature() {
+  const recapToggle = $('recap-toggle');
+  const recapDialog = $('recap-dialog');
+  const closeRecap = $('close-recap');
+  const recapDate = $('recap-date');
+  const recapArea = $('recap-area');
+  const recapTitle = $('recap-title');
+  const recapReload = $('recap-reload');
+  const recapCopyBtn = $('recap-copy-btn');
+  const recapDownloadBtn = $('recap-download-btn');
+  const recapResult = $('recap-result');
+  const recapCount = $('recap-count');
+
+  if (!recapToggle || !recapDialog) return;
+
+  function updateRecapAreaOptions(areas = []) {
+    const currentVal = recapArea.value;
+    recapArea.replaceChildren(new Option('Semua Area Kerja', ''));
+    
+    const set = new Set();
+    areas.forEach(a => {
+      if (!isShiftArea(a)) set.add(a);
+    });
+    const mainAreaSelect = $('area_kerja');
+    if (mainAreaSelect) {
+      Array.from(mainAreaSelect.options).forEach(opt => {
+        if (opt.value && !isShiftArea(opt.value)) set.add(opt.value);
+      });
+    }
+    const sorted = Array.from(set).sort((a, b) => {
+      const keyA = getAreaSortKey(a);
+      const keyB = getAreaSortKey(b);
+      return keyA.localeCompare(keyB, 'id-ID', { sensitivity: 'base' });
+    });
+    sorted.forEach(area => {
+      recapArea.add(new Option(area, area));
+    });
+    if (currentVal && set.has(currentVal)) {
+      recapArea.value = currentVal;
+    }
+  }
+
+  async function loadRecap() {
+    const targetDate = recapDate.value || $('end').value || $('start').value || isoLocal(new Date());
+    recapDate.value = targetDate;
+    const selectedArea = recapArea.value;
+    const customTitle = recapTitle.value.trim() || '*Tim RM Reguler PIC Tower*';
+    const isDw = reportsUrl.includes('dw');
+
+    recapResult.value = 'Memuat rekap laporan…';
+    recapCount.textContent = 'Memuat…';
+
+    try {
+      const params = new URLSearchParams({
+        date: targetDate,
+        area_kerja: selectedArea,
+        title: customTitle,
+        source: isDw ? 'dw' : 'engineering'
+      });
+      const response = await fetch('/api/reports/recap?' + params.toString());
+      if (response.ok) {
+        const data = await response.json();
+        recapResult.value = data.text || '';
+        recapCount.textContent = `${data.count || 0} pekerjaan`;
+        if (data.areas && data.areas.length) {
+          updateRecapAreaOptions(data.areas);
+        }
+      } else {
+        throw new Error('Gagal mengambil data dari server.');
+      }
+    } catch (err) {
+      // Fallback: format using state.rows if matching date
+      const filtered = state.rows.filter(r => {
+        const d = String(r.tanggal || '').substring(0, 10);
+        const matchesDate = !targetDate || d === targetDate;
+        const matchesArea = !selectedArea || r.area_kerja === selectedArea;
+        const notShift = !isShiftReport(r);
+        return matchesDate && matchesArea && notShift;
+      });
+      recapResult.value = formatDailyRecapClient(filtered, customTitle);
+      recapCount.textContent = `${filtered.length} pekerjaan`;
+    }
+  }
+
+  window.loadRecapFromApp = loadRecap;
+
+  function doOpenRecap() {
+    const activeDate = $('end')?.value || $('start')?.value || isoLocal(new Date());
+    if (recapDate) recapDate.value = activeDate;
+    updateRecapAreaOptions();
+    if ($('area_kerja') && recapArea) {
+      recapArea.value = $('area_kerja').value || '';
+    }
+    if (typeof recapDialog.showModal === 'function') {
+      try {
+        if (!recapDialog.open) recapDialog.showModal();
+      } catch (e) {
+        recapDialog.setAttribute('open', '');
+      }
+    } else {
+      recapDialog.setAttribute('open', '');
+    }
+    loadRecap();
+  }
+
+  function doCloseRecap() {
+    if (typeof recapDialog.close === 'function') {
+      try {
+        recapDialog.close();
+      } catch (e) {
+        recapDialog.removeAttribute('open');
+      }
+    } else {
+      recapDialog.removeAttribute('open');
+    }
+  }
+
+  window.openRecapModal = doOpenRecap;
+  window.closeRecapModal = doCloseRecap;
+
+  recapToggle.onclick = (e) => {
+    if (e) e.preventDefault();
+    doOpenRecap();
+  };
+
+  document.addEventListener('click', (e) => {
+    if (e.target && e.target.closest && e.target.closest('#recap-toggle')) {
+      e.preventDefault();
+      doOpenRecap();
+    }
+  });
+
+  closeRecap.onclick = doCloseRecap;
+  recapDialog.addEventListener('click', e => {
+    if (e.target === recapDialog) doCloseRecap();
+  });
+
+  recapReload.onclick = () => loadRecap();
+  recapDate.addEventListener('change', () => loadRecap());
+  recapArea.addEventListener('change', () => loadRecap());
+  recapTitle.addEventListener('input', () => {
+    clearTimeout(recapTitle._timer);
+    recapTitle._timer = setTimeout(loadRecap, 300);
+  });
+
+  recapCopyBtn.onclick = async () => {
+    const text = recapResult.value;
+    if (!text || text === 'Memuat rekap laporan…') {
+      toast('Tidak ada teks untuk disalin.');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      toast('Rekap harian berhasil disalin ke clipboard!');
+    } catch (e) {
+      recapResult.select();
+      document.execCommand('copy');
+      toast('Rekap harian berhasil disalin ke clipboard!');
+    }
+  };
+
+  recapDownloadBtn.onclick = () => {
+    const text = recapResult.value;
+    if (!text || text === 'Memuat rekap laporan…') {
+      toast('Tidak ada teks untuk diunduh.');
+      return;
+    }
+    const d = recapDate.value || 'harian';
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = element('a');
+    link.href = url;
+    link.download = `rekap_harian_${d}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    toast('File rekap berhasil diunduh.');
+  };
+}
+
+initRecapFeature();
 defaultDates(); load();
